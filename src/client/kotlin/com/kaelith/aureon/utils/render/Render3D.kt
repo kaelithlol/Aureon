@@ -1,0 +1,99 @@
+package com.kaelith.aureon.utils.render
+
+import com.kaelith.aureon.api.astrum.Astrum
+import com.kaelith.aureon.api.zenith.camera
+import com.kaelith.aureon.api.zenith.client
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.phys.shapes.CollisionContext
+import java.awt.Color
+
+object Render3D {
+    fun outlineBlock(pos: BlockPos, color: Color, lineWidth: Float = 1f, depth: Boolean = true, state: BlockState? = null) {
+        val level = client.level ?: return
+        val finalState = state ?:level.getBlockState(pos)
+        val shape = finalState.getShape(level, pos, CollisionContext.empty())
+
+        if (shape.isEmpty) {
+            drawBox(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1.0, 1.0, color, depth, lineWidth)
+            return
+        }
+
+        Astrum.queueVoxelOutline(shape, Vec3.atLowerCornerOf(pos), color, depth, lineWidth)
+    }
+
+    fun fillBlock(pos: BlockPos, color: Color, depth: Boolean = true, state: BlockState? = null) {
+        val level = client.level ?: return
+        val finalState = state ?: level.getBlockState(pos)
+        val shape = finalState.getShape(level, pos, CollisionContext.empty())
+
+        if (shape.isEmpty) {
+            drawFilledBox(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1.0, 1.0, color, depth)
+            return
+        }
+
+        Astrum.queueVoxelFill(shape, Vec3.atLowerCornerOf(pos), color, depth)
+    }
+
+    fun drawBox(x: Double, y: Double, z: Double, width: Double, height: Double, color: Color, depth: Boolean = true, lineWidth: Float = 1f) {
+        val hw = width / 2.0
+        val aabb = AABB(x + 0.5 - hw, y, z + 0.5 - hw, x + 0.5 + hw, y + height, z + 0.5 + hw)
+        Astrum.queueBox(aabb, color, filled = false, depth = depth, lineWidth = lineWidth)
+    }
+
+    fun drawFilledBox(x: Double, y: Double, z: Double, width: Double, height: Double, color: Color, depth: Boolean = true) {
+        val hw = width / 2.0
+        val aabb = AABB(x + 0.5 - hw, y, z + 0.5 - hw, x + 0.5 + hw, y + height, z + 0.5 + hw)
+        Astrum.queueBox(aabb, color, filled = true, depth = depth)
+    }
+
+    fun drawLine(start: Vec3, finish: Vec3, thickness: Float, color: Color, depth: Boolean = true) {
+        Astrum.queueLine(start, finish, color, thickness, depth)
+    }
+
+    fun drawLineFromCursor(target: Vec3, color: Color, width: Float = 1f) {
+        val start = camera.position().add(Vec3.directionFromRotation(camera.xRot(), camera.yRot()).scale(0.5))
+        Astrum.queueLine(start, target, color, width, depth = false)
+    }
+
+    fun drawText(
+        text: String,
+        x: Double,
+        y: Double,
+        z: Double,
+        scale: Float = 1f,
+        color: Int = 0xFFFFFFFF.toInt(),
+        bgBox: Boolean = false,
+        increase: Boolean = false,
+        depth: Boolean = true,
+    ) {
+        drawText(text, Vec3(x, y, z), scale, color, bgBox, increase, depth)
+    }
+
+    fun drawText(
+        text: String,
+        pos: Vec3,
+        scale: Float = 1f,
+        color: Int = 0xFFFFFFFF.toInt(),
+        bgBox: Boolean = false,
+        increase: Boolean = false,
+        depth: Boolean = true
+    ) {
+        var finalScale = scale
+        if (increase) {
+            val dist = camera.position().distanceTo(pos)
+            finalScale *= (dist.toFloat() / 120f) / 0.025f
+        }
+
+        val lines = text.split("\n")
+        lines.forEachIndexed { i, line ->
+            val yOffset = i * 9.0 * 0.025 * finalScale
+            val linePos = pos.subtract(0.0, yOffset, 0.0)
+            val bgColor = if (bgBox) (client.options.getBackgroundOpacity(0.25f) * 255).toInt() shl 24 else 0
+
+            Astrum.queueText(line, linePos, color, finalScale, shadow = true, depth = depth, bgColor = bgColor)
+        }
+    }
+}

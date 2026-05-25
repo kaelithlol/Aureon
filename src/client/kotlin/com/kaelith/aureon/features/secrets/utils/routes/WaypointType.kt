@@ -1,0 +1,64 @@
+package com.kaelith.aureon.features.secrets.utils.routes
+
+import com.kaelith.aureon.features.secrets.SecretRoutes
+import java.awt.Color
+
+enum class WaypointType {
+    START,
+    BAT,
+    CHEST,
+    ESSENCE,
+    ITEM,
+    MINE,
+    LEVER,
+    SUPERBOOM,
+    ETHERWARP,
+    PEARL,
+    CUSTOM,
+    ;
+
+    val color: Color
+        get() = when (this) {
+            BAT -> SecretRoutes.batColor
+            MINE -> SecretRoutes.mineColor
+            CHEST -> SecretRoutes.chestColor
+            ITEM -> SecretRoutes.itemColor
+            ESSENCE -> SecretRoutes.essenceColor
+            ETHERWARP -> SecretRoutes.etherWarpColor
+            PEARL -> SecretRoutes.pearlColor
+            SUPERBOOM -> SecretRoutes.superBoomColor
+            LEVER -> SecretRoutes.leverColor
+            START -> SecretRoutes.startColor
+            CUSTOM -> Color.WHITE
+        }
+
+
+    val label: String
+        get() = when (this) {
+            BAT -> "Bat"
+            MINE -> "Mine"
+            CHEST, ESSENCE -> "Click"
+            ITEM -> "Item"
+            ETHERWARP -> "Warp"
+            PEARL -> "Pearl"
+            SUPERBOOM -> "Boom!"
+            LEVER -> "Flick"
+            START -> ""
+            CUSTOM -> name
+        }
+
+    val depth get() = when (this) {
+        START -> !RoutePlayer.startEsp
+        CHEST, ITEM, ESSENCE, BAT -> false
+        else -> true
+    }
+
+    companion object {
+        fun fromString(value: String?): WaypointType? {
+            if (value == null) return null
+            return entries.find { it.name.equals(value, ignoreCase = true) }
+        }
+
+        val SECRET = setOf(CHEST, ITEM, ESSENCE, BAT)
+    }
+}

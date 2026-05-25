@@ -1,0 +1,302 @@
+package com.kaelith.aureon.features.secrets.utils.routes
+
+import com.kaelith.aureon.AureonCore
+import com.kaelith.aureon.annotations.Module
+import com.kaelith.aureon.api.config.core.Keybind
+import com.kaelith.aureon.events.EventBus
+import com.kaelith.aureon.events.core.DungeonEvent
+import com.kaelith.aureon.events.core.RenderEvent
+import com.kaelith.aureon.events.core.SoundEvent
+import com.kaelith.aureon.events.core.TickEvent
+import com.kaelith.aureon.features.secrets.SecretRoutes
+import com.kaelith.aureon.hud.HUDManager
+import com.kaelith.aureon.api.handlers.Signal
+import com.kaelith.aureon.utils.Utils.calcDistanceSq
+import com.kaelith.aureon.utils.render.Render2D
+import com.kaelith.aureon.api.dungeons.Dungeon
+import com.kaelith.aureon.api.dungeons.map.Room
+import com.kaelith.aureon.api.dungeons.utils.RoomRegistry
+import com.kaelith.aureon.api.handlers.Chronos
+import com.kaelith.aureon.api.zenith.client
+import com.kaelith.aureon.api.zenith.player
+import com.kaelith.aureon.api.zenith.world
+import com.kaelith.aureon.features.secrets.utils.routes.editor.WaypointEditor
+import com.kaelith.aureon.utils.config
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.core.BlockPos
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.world.phys.BlockHitResult
+import tech.thatgravyboat.skyblockapi.api.location.SkyBlockIsland
+import tech.thatgravyboat.skyblockapi.utils.text.TextProperties.stripped
+import java.awt.Color
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.collections.setOf
+
+@Module
+object RouteRecorder {
+    private val addCustomBind by config.property<Keybind.Handler>("secretRoutes.addCustom")
+
+    var recording = false
+        private set
+
+    private val route = CopyOnWriteArrayList<StepData>()
+    private var stepIndex = 0
+    private var currentRoom: Room? = null
+    private var lastPlayerPos: BlockPos? = null
+
+    val currentStep: StepData get() = route[stepIndex]
+    val lastStep: StepData? get() = route.getOrNull(stepIndex - 1)
+    val lastSecretPos: BlockPos get() = lastStep?.waypoints?.firstOrNull { it.type in WaypointType.SECRET }?.pos ?: BlockPos.ZERO
+
+    init {
+        EventBus.on<DungeonEvent.Room.Change>(SkyBlockIsland.THE_CATACOMBS) {
+            if (!recording) return@on
+
+            Signal.fakeMessage("${AureonCore.PREFIX} §cError: left room, stopping")
+            stopRecording()
+        }
+
+        EventBus.on<DungeonEvent.Secrets.Bat>(SkyBlockIsland.THE_CATACOMBS) { if (!recording) return@on;addWaypoint(WaypointType.BAT, it.blockPos) }
+        EventBus.on<DungeonEvent.Secrets.Chest>(SkyBlockIsland.THE_CATACOMBS) { if (!recording) return@on; addWaypoint(WaypointType.CHEST, it.blockPos) }
+        EventBus.on<DungeonEvent.Secrets.Essence>(SkyBlockIsland.THE_CATACOMBS) { if (!recording) return@on; addWaypoint(WaypointType.ESSENCE, it.blockPos)}
+
+        EventBus.on<DungeonEvent.Secrets.Item>(SkyBlockIsland.THE_CATACOMBS) { event ->
+            if (!recording || currentRoom == null) return@on
+            val pos = world?.getEntity(event.entityId)?.blockPosition() ?: return@on
+            if (calcDistanceSq(currentRoom!!.getRealCoord(lastSecretPos), pos) < 3) return@on
+            addWaypoint(WaypointType.ITEM, pos)
+        }
+
+        EventBus.on<DungeonEvent.Secrets.Misc>(SkyBlockIsland.THE_CATACOMBS) {
+            if (!recording) return@on
+
+            when (it.secretType) {
+                DungeonEvent.Secrets.Type.RED_SKULL -> { /*TODO*/ }
+                DungeonEvent.Secrets.Type.LEVER -> { addWaypoint(WaypointType.LEVER, it.blockPos) }
+            }
+        }
+
+        EventBus.on<SoundEvent.Play>(SkyBlockIsland.THE_CATACOMBS) { event ->
+            if (!recording) return@on
+
+            val healdItem = player?.mainHandItem?.hoverName?.stripped ?: ""
+            val sound = event.sound
+            val pos = event.pos
+
+            if (sound == SoundEvents.ENDER_DRAGON_HURT) {
+                val pos = BlockPos((pos.x - 0.5).toInt(), (pos.y - 1).toInt(), (pos.z - 0.5).toInt())
+                addWaypoint(WaypointType.ETHERWARP, pos)
+            }
+
+            if (sound == SoundEvents.GENERIC_EXPLODE.value()) {
+                if (setOf("boom TNT", "Explosive Bow").none { healdItem.contains(it) }) return@on
+                val pos = BlockPos((pos.x - 0.5).toInt(), (pos.y - 0.5).toInt(), (pos.z - 0.5).toInt())
+                addWaypoint(WaypointType.SUPERBOOM, pos)
+            }
+
+            if (sound.location.toString().contains("break")) {
+                if(!healdItem.contains("Dungeonbreaker")) return@on
+                val pos = BlockPos((pos.x - 0.5).toInt(), (pos.y - 0.5).toInt(), (pos.z - 0.5).toInt())
+                addWaypoint(WaypointType.MINE, pos)
+            }
+
+            if (sound in setOf(SoundEvents.ARROW_SHOOT, SoundEvents.ENDERMAN_TELEPORT) ) {
+                if (!healdItem.contains("Ender Pearl")) return@on
+                val land = sound == SoundEvents.ENDERMAN_TELEPORT
+                Chronos.Tick post {
+                    var pos = player?.onPos ?: BlockPos((pos.x - 0.5).toInt(), (pos.y - 1).toInt(), (pos.z - 0.5).toInt())
+                    if (land) pos = player?.onPos?.below(1) ?: pos
+                    addWaypoint(WaypointType.PEARL, pos)
+                }
+            }
+        }
+
+        EventBus.on<TickEvent.Client>(SkyBlockIsland.THE_CATACOMBS) {
+            if (!recording) return@on
+
+            val room = Dungeon.currentRoom ?: return@on
+            val loc = player?.onPos ?: return@on
+            val pos = room.getRoomCoord(BlockPos(loc.x, loc.y + 1, loc.z))
+
+            if (lastPlayerPos == null || calcDistanceSq(pos, lastPlayerPos!!) > 4) {
+                currentStep.line += pos
+                lastPlayerPos = pos
+            }
+        }
+
+        EventBus.on<RenderEvent.World.Last>(SkyBlockIsland.THE_CATACOMBS) {
+            if (!recording) return@on
+            RoutePlayer.renderRecordingRoute(currentStep, lastStep)
+        }
+
+        addCustomBind.onPress { addCustom() }
+    }
+
+    fun nextStep() {
+        stepIndex++
+        if (stepIndex >= route.size) {
+            route.add(StepData(CopyOnWriteArrayList(), CopyOnWriteArrayList()))
+            val loc = player?.onPos ?: return
+            val pos = currentRoom?.getRoomCoord(BlockPos(loc.x, loc.y + 1, loc.z)) ?: return
+            currentStep.line += pos
+        }
+    }
+
+    fun previousStep() {
+        if (stepIndex > 0) stepIndex--
+    }
+
+    fun getRoute(): List<StepData> = route
+
+    fun startRecording() {
+        val room = Dungeon.currentRoom
+        if (room?.name == null) {
+            Signal.fakeMessage("${AureonCore.PREFIX} §cNot in a valid dungeon room")
+            return
+        }
+
+        currentRoom = room
+        route.clear()
+        stepIndex = 0
+        route.add(StepData(CopyOnWriteArrayList(), CopyOnWriteArrayList()))
+        recording = true
+
+        player?.onPos?.let { addWaypoint(WaypointType.START, it) }
+        Signal.fakeMessage("${AureonCore.PREFIX} §aStarted route recording for ${room.name}")
+    }
+
+    fun stopRecording() {
+        recording = false
+        Signal.fakeMessage("${AureonCore.PREFIX} §cStopped Recording")
+    }
+
+    fun saveRoute() {
+        if (currentRoom?.name == null || !recording || route.isEmpty()) {
+            Signal.fakeMessage("${AureonCore.PREFIX} §cNo route to save")
+            return
+        }
+
+        RouteRegistry.saveRoute(currentRoom?.name ?: return, getRoute())
+        RouteRegistry.reload()
+        Signal.fakeMessage("${AureonCore.PREFIX} §aSaved route for ${currentRoom?.name}")
+        stopRecording()
+    }
+
+    fun reloadRoutes() {
+        RouteRegistry.reload()
+        Signal.fakeMessage("${AureonCore.PREFIX} §aReloaded routes")
+    }
+
+    fun addWaypoint(pos: BlockPos, name: String, color: Color, depth: Boolean) {
+        val room = Dungeon.currentRoom ?: return
+        val relPos = room.getRoomCoord(pos)
+        val waypoint = WaypointData(relPos, WaypointType.CUSTOM, name, color, depth)
+        addWaypoint(waypoint)
+    }
+
+    fun addWaypoint(type: WaypointType, pos: BlockPos) {
+        val room = Dungeon.currentRoom ?: return
+        val relPos = room.getRoomCoord(pos)
+        val waypoint = WaypointData(relPos, type)
+        addWaypoint(waypoint)
+    }
+
+    fun addWaypoint(waypoint: WaypointData) {
+        if (waypoint.type in WaypointType.SECRET) {
+            if (waypoint.pos == lastSecretPos) return
+            currentStep.waypoints += waypoint
+            nextStep()
+            return
+        }
+
+        currentStep.waypoints += waypoint
+    }
+
+    fun hudPreview(context: GuiGraphicsExtractor) {
+        val matirix = context.pose()
+
+        matirix.pushMatrix()
+        matirix.translate(5f, 5f)
+
+        if(SecretRoutes.minimized) {
+            Render2D.drawString(context, "§a▶ Recording", 0, 0)
+        } else {
+            Render2D.drawString(context, "§bRecording Room §dSupertall", 0, 0)
+            Render2D.drawString(context, "§7On Step§8: §b2", 0, 10)
+            Render2D.drawString(context, "§7Line Nodes§8: §b2", 0, 20)
+            Render2D.drawString(context, "§7Etherwarps§8: §b5", 0, 30)
+            Render2D.drawString(context, "§7Superbooms§8: §b1", 0, 40)
+            Render2D.drawString(context, "§7Levers§8: §b1", 0, 50)
+            Render2D.drawString(context, "§7Stonks§8: §b6", 0, 60)
+            Render2D.drawString(context, "§7Custom Waypoints§8: §b0", 0, 70)
+            Render2D.drawString(context, "§7Secrets§8: §b1§7/§66", 0, 80)
+            Render2D.drawString(context, "§7Last Secret§8: §7(§610§7, §660§7, §620§7)", 0, 90)
+        }
+
+        matirix.popMatrix()
+    }
+
+    fun hud(context: GuiGraphicsExtractor) {
+        val matrix = context.pose()
+
+        val x = HUDManager.getX(SecretRoutes.rHudName)
+        val y = HUDManager.getY(SecretRoutes.rHudName)
+        val scale = HUDManager.getScale(SecretRoutes.rHudName)
+
+        matrix.pushMatrix()
+        matrix.translate(x,y)
+        matrix.scale(scale)
+        matrix.translate(5f, 5f)
+
+        if(!recording) {
+            if(SecretRoutes.minimized) Render2D.drawString(context, "§c■ Not Recording", 0, 0)
+            else Render2D.drawString(context, "§cNot Recording", 0, 0)
+        } else {
+            var etherwarps = 0; var superbooms = 0; var levers = 0; var stonks = 0; var customs = 0
+            for (wp in currentStep.waypoints) when (wp.type) {
+                WaypointType.ETHERWARP -> etherwarps++
+                WaypointType.SUPERBOOM -> superbooms++
+                WaypointType.LEVER     -> levers++
+                WaypointType.MINE      -> stonks++
+                WaypointType.CUSTOM    -> customs++
+                else -> {}
+            }
+
+            val lastSecretType = lastStep?.waypoints?.firstOrNull { it.type in WaypointType.SECRET}?.type ?: "§cNone"
+
+            if(SecretRoutes.minimized) {
+                Render2D.drawString(context, "§a▶ Recording", 0, 0)
+            } else {
+                Render2D.drawString(context, "§bRecording Room §d${currentRoom?.name}", 0, 0)
+                Render2D.drawString(context, "§7On Step§8: §b$stepIndex", 0, 10)
+                Render2D.drawString(context, "§7Line Nodes§8: §b${currentStep.line.size}", 0, 20)
+                Render2D.drawString(context, "§7Etherwarps§8: §b$etherwarps", 0, 30)
+                Render2D.drawString(context, "§7Superbooms§8: §b$superbooms", 0, 40)
+                Render2D.drawString(context, "§7Levers§8: §b$levers", 0, 50)
+                Render2D.drawString(context, "§7Stonks§8: §b$stonks", 0, 60)
+                Render2D.drawString(context, "§7Custom Waypoints§8: §b$customs", 0, 70)
+                Render2D.drawString(context, "§7Secrets§8: §b${Dungeon.currentRoom?.secretsFound}§8/§6${Dungeon.currentRoom?.secrets}", 0, 80)
+                Render2D.drawString(context, "§7Last Secret§8: $lastSecretType", 0, 90)
+            }
+        }
+
+        matrix.popMatrix()
+    }
+
+    fun addCustom() {
+        if (!recording) {
+            Signal.fakeMessage("${AureonCore.PREFIX} §cError: not recording")
+            return
+        }
+
+        val hitresult = client.hitResult as? BlockHitResult ?: return
+
+        Chronos.Tick post {
+            client.setScreen(WaypointEditor(hitresult.blockPos))
+        }
+    }
+
+    fun getMissing(): List<String> = RoomRegistry.getAll()
+        .filter { it.type.equals("normal", true) }
+        .map { it.name } - RouteRegistry.getAll().map { it.key }.toSet()
+}

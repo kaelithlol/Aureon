@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.kaelith.aureon.mixins",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "accessors.AccessorGpuDevice"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

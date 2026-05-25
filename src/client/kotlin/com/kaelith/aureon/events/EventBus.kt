@@ -1,0 +1,140 @@
+package com.kaelith.aureon.events
+
+import com.kaelith.aureon.AureonCore
+import com.kaelith.aureon.annotations.Module
+import com.kaelith.aureon.api.events.Event
+import com.kaelith.aureon.api.events.EventBus
+import com.kaelith.aureon.api.events.EventHandle
+import com.kaelith.aureon.api.handlers.Chronos
+import com.kaelith.aureon.api.zenith.*
+import com.kaelith.aureon.events.core.*
+import com.kaelith.aureon.managers.EventBusManager
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
+import net.minecraft.resources.Identifier
+import org.lwjgl.glfw.GLFW
+import com.kaelith.aureon.events.core.GuiEvent
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
+import net.minecraft.network.protocol.Packet
+import tech.thatgravyboat.repolib.api.RepoAPI
+import tech.thatgravyboat.repolib.api.RepoStatus
+import tech.thatgravyboat.repolib.api.RepoVersion
+import tech.thatgravyboat.skyblockapi.api.location.SkyBlockIsland
+import tech.thatgravyboat.skyblockapi.api.area.dungeon.DungeonFloor
+import tech.thatgravyboat.skyblockapi.api.location.SkyBlockArea
+
+@Module
+object EventBus : EventBus() {
+    private val AUREON_HUDS = Identifier.fromNamespaceAndPath(AureonCore.NAMESPACE, "aureon_hud")
+
+    init {
+        ClientTickEvents.START_CLIENT_TICK.register {
+            post(TickEvent.Client())
+            Chronos.Tick.pulse()
+        }
+
+        ClientReceiveMessageEvents.ALLOW_GAME.register { message, isActionBar ->
+            !post(ChatEvent.Receive(message, isActionBar))
+        }
+
+        ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
+            post(ServerEvent.Connect())
+        }
+
+        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+            post(ServerEvent.Disconnect())
+        }
+
+        ClientLifecycleEvents.CLIENT_STARTED.register { _ ->
+            post(GameEvent.Start())
+        }
+
+        ClientLifecycleEvents.CLIENT_STOPPING.register { _ ->
+            post(GameEvent.Stop())
+        }
+
+        ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
+            ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
+               !post(GuiEvent.Click(click.x, click.y, click.button(), true, screen))
+            }
+
+            ScreenMouseEvents.allowMouseRelease(screen).register { _, click ->
+               !post(GuiEvent.Click(click.x, click.y, click.button(), false, screen))
+            }
+
+            ScreenKeyboardEvents.allowKeyPress(screen).register { _, keyInput ->
+               val charTyped = GLFW.glfwGetKeyName(keyInput.key, keyInput.scancode)?.firstOrNull() ?: '\u0000'
+               !post(GuiEvent.Key(GLFW.glfwGetKeyName(keyInput.key, keyInput.scancode), keyInput.key, charTyped, keyInput.key, screen))
+            }
+        }
+
+        ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
+            post(GuiEvent.Open(screen))
+        }
+
+        LevelRenderEvents.AFTER_SOLID_FEATURES.register { context ->
+            post(RenderEvent.World.AfterEntities(context.poseStack()))
+        }
+
+        LevelRenderEvents.END_MAIN.register { context ->
+           post(RenderEvent.World.Last(context.poseStack()))
+        }
+
+        LevelRenderEvents.BEFORE_BLOCK_OUTLINE.register { context, outlineRenderState ->
+           !post(RenderEvent.World.BlockOutline(context.poseStack(), outlineRenderState.pos(), outlineRenderState.shape))
+        }
+
+        HudElementRegistry.attachElementBefore(VanillaHudElements.SLEEP, AUREON_HUDS) { context, _ ->
+            if (client.options.hideGui || world == null || player == null) return@attachElementBefore
+            post(GuiEvent.RenderHUD(context))
+            AureonCore.DELTA.updateDelta()
+        }
+    }
+
+    fun onPacketReceived(packet: Packet<*>): Boolean {
+        return post(PacketEvent.Received(packet))
+    }
+
+    inline fun <reified T : Event> on(
+        vararg scope: Any,
+        skyblockOnly: Boolean = false,
+        priority: Int = 0,
+        noinline handler: (T) -> Unit
+    ): EventHandle<T> { // partition scopes into sets
+        val islands = mutableSetOf<SkyBlockIsland>()
+        val arias = mutableSetOf<SkyBlockArea>()
+        val floors = mutableSetOf<DungeonFloor>()
+
+        scope.forEach {
+            when (it) {
+                is SkyBlockIsland -> islands += it
+                is SkyBlockArea -> arias += it
+                is DungeonFloor -> floors += it
+                else -> throw IllegalArgumentException(
+                    "Unsupported scope type: ${it::class.simpleName}. "
+                            + "Must be SkyBlockIsland, SkyBlockArea, or DungeonFloor."
+                )
+            }
+        }
+
+        val handle = on<T>(priority, handler = handler, register = false)
+
+            EventBusManager.trackConditionalEvent(
+                islands = islands.ifEmpty { null },
+                arias = arias.ifEmpty { null },
+                floors = floors.ifEmpty { null },
+                skyblockOnly = skyblockOnly,
+                handle = handle
+            )
+
+        return handle
+    }
+}

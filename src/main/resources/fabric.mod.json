@@ -1,0 +1,43 @@
+{
+	"schemaVersion": 1,
+	"id": "aureon",
+	"version": "${version}",
+	"name": "Aureon",
+	"description": "Aureon is a Hypixel SkyBlock dungeon and quality-of-life client mod.",
+	"authors": [
+		"kaelith"
+	],
+	"contact": {
+		"homepage": "https://modrinth.com/mod/aureon",
+		"sources": "https://github.com/kaelithlol/aureon"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/aureon/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.kaelith.Aureon"
+		],
+		"client": [
+			"com.kaelith.client.AureonClient"
+		]
+	},
+	"mixins": [
+		"aureon.mixins.json",
+		{
+			"config": "aureon.client.mixins.json",
+			"environment": "client"
+		},
+		{
+			"config": "aureon.render.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}

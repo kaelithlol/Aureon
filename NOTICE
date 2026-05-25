@@ -1,0 +1,5 @@
+Aureon includes a Stella-style ClickGUI baseline.
+
+The visual structure is adapted from Stella 26.1's configuration UI concepts.
+Stella is licensed under the GNU Lesser General Public License v3.0.
+See `THIRD_PARTY_LICENSES/STELLA-LGPL-3.0.md` for the Stella license text.

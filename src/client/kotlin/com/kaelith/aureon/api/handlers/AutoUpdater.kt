@@ -1,0 +1,314 @@
+package com.kaelith.aureon.api.handlers
+
+import com.google.gson.annotations.SerializedName
+import com.kaelith.aureon.AureonCore
+import com.kaelith.aureon.annotations.Module
+import com.kaelith.aureon.events.EventBus
+import com.kaelith.aureon.events.core.GameEvent
+import com.kaelith.aureon.events.core.TickEvent
+import com.kaelith.aureon.utils.config
+import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.util.Util
+import java.io.IOException
+import java.io.InputStream
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.time.Duration
+import java.util.Comparator
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.jar.JarFile
+
+@Module
+object AutoUpdater {
+    private const val CHECK_INTERVAL_MS = 15L * 60L * 1000L
+    private const val PENDING_UPDATE_SUFFIX = ".aureon-update"
+    private const val UPDATE_REPO = "kaelithlol/aureon"
+    private const val EXPECTED_MOD_ID = "aureon"
+    private const val EXPECTED_ASSET_PREFIX = "aureon-"
+    private const val INSTALLER_MAIN_CLASS = "com.kaelith.aureon.api.handlers.UpdateInstaller"
+    private val INSTALLER_CLASS_RESOURCE = "/" + INSTALLER_MAIN_CLASS.replace('.', '/') + ".class"
+
+    private val checking = AtomicBoolean(false)
+    private val http = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(10))
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build()
+
+    @Volatile private var lastCheckStartedMs = 0L
+    @Volatile var statusLine = "Ready. Use /aureon update status."
+        private set
+
+    init {
+        EventBus.on<TickEvent.Client> {
+            if (!isEnabled() || checking.get()) return@on
+            val now = Util.getMillis()
+            if (lastCheckStartedMs == 0L || now - lastCheckStartedMs >= CHECK_INTERVAL_MS) {
+                checkForUpdatesAsync(manual = false)
+            }
+        }
+
+        EventBus.on<GameEvent.Stop> {
+            if (isEnabled()) trySchedulePendingInstall()
+        }
+
+        config.registerListener { name, value ->
+            if (name != "autoUpdater") return@registerListener
+            if (value as? Boolean == false) {
+                statusLine = "Auto updater disabled."
+                clearPendingUpdate()
+            } else {
+                statusLine = "Auto updater enabled."
+                checkForUpdatesAsync(manual = false)
+            }
+        }
+    }
+
+    fun checkForUpdatesAsync(manual: Boolean) {
+        if (!isEnabled() && !manual) {
+            statusLine = "Auto updater is disabled."
+            return
+        }
+        if (!checking.compareAndSet(false, true)) {
+            statusLine = "Already checking GitHub for updates..."
+            return
+        }
+
+        lastCheckStartedMs = Util.getMillis()
+        statusLine = "Checking GitHub releases..."
+
+        Thread.startVirtualThread {
+            try {
+                performCheck()
+            } catch (e: Exception) {
+                statusLine = "Update check failed. See log for details."
+                AureonCore.LOGGER.error("[Aureon AutoUpdater] Failed to check for updates", e)
+            } finally {
+                checking.set(false)
+            }
+        }
+    }
+
+    fun clearPendingUpdate() {
+        resolveCurrentJarPath()
+            ?.let(::pendingPathFor)
+            ?.let {
+                try {
+                    Files.deleteIfExists(it)
+                } catch (e: IOException) {
+                    AureonCore.LOGGER.warn("[Aureon AutoUpdater] Failed to clear pending update {}", it, e)
+                }
+            }
+    }
+
+    private fun performCheck() {
+        val request = HttpRequest.newBuilder(URI.create("https://api.github.com/repos/$UPDATE_REPO/releases/latest"))
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28")
+            .header("User-Agent", "Aureon AutoUpdater")
+            .timeout(Duration.ofSeconds(20))
+            .GET()
+            .build()
+
+        val releaseResponse = http.send(request, HttpResponse.BodyHandlers.ofString())
+        if (releaseResponse.statusCode() != 200) {
+            statusLine = "GitHub responded with HTTP ${releaseResponse.statusCode()}."
+            return
+        }
+
+        val release = Quasar.gson.fromJson(releaseResponse.body(), GithubRelease::class.java)
+        val asset = release?.assets
+            ?.filterNotNull()
+            ?.firstOrNull {
+                it.browserDownloadUrl != null &&
+                    it.name != null &&
+                    it.name!!.endsWith(".jar") &&
+                    !it.name!!.contains("-sources") &&
+                    it.name!!.startsWith(EXPECTED_ASSET_PREFIX)
+            }
+
+        if (asset?.browserDownloadUrl == null || asset.name == null) {
+            statusLine = "Release exists, but there is no Aureon jar asset to download."
+            return
+        }
+
+        val currentVersion = FabricLoader.getInstance().getModContainer(EXPECTED_MOD_ID)
+            .map { it.metadata.version.friendlyString }
+            .orElse("unknown")
+        val latestVersion = normalizeVersion(release.tagName)
+
+        val currentJar = resolveCurrentJarPath()
+        val destination = if (currentJar != null) {
+            pendingPathFor(currentJar)
+        } else {
+            val updateDir = FabricLoader.getInstance().configDir.resolve(AureonCore.NAMESPACE).resolve("updates")
+            Files.createDirectories(updateDir)
+            updateDir.resolve(asset.name!!)
+        }
+
+        if (latestVersion == normalizeVersion(currentVersion)) {
+            currentJar?.let(::pendingPathFor)?.let { Files.deleteIfExists(it) }
+            statusLine = "You're up to date on $currentVersion."
+            return
+        }
+
+        if (Files.exists(destination) && (asset.size <= 0 || Files.size(destination) == asset.size)) {
+            statusLine = if (currentJar != null) {
+                "Update ${release.tagName} is ready. Restart the game to apply it."
+            } else {
+                "Update ${release.tagName} is already downloaded to config/aureon/updates."
+            }
+            return
+        }
+
+        if (currentJar != null) cleanupSiblingPending(currentJar, destination)
+        else cleanupFallbackDownloads(destination.parent, destination)
+
+        val downloadRequest = HttpRequest.newBuilder(URI.create(asset.browserDownloadUrl))
+            .header("User-Agent", "Aureon AutoUpdater")
+            .timeout(Duration.ofSeconds(60))
+            .GET()
+            .build()
+        val downloadResponse = http.send(downloadRequest, HttpResponse.BodyHandlers.ofInputStream())
+        if (downloadResponse.statusCode() != 200) {
+            statusLine = "Download failed with HTTP ${downloadResponse.statusCode()}."
+            return
+        }
+
+        val tempFile = destination.resolveSibling("${destination.fileName}.part")
+        downloadResponse.body().use { input -> Files.copy(input, tempFile, StandardCopyOption.REPLACE_EXISTING) }
+        if (!verifyDownloadedJar(tempFile)) {
+            Files.deleteIfExists(tempFile)
+            statusLine = "Downloaded file failed verification."
+            return
+        }
+
+        try {
+            Files.move(tempFile, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } catch (_: IOException) {
+            Files.move(tempFile, destination, StandardCopyOption.REPLACE_EXISTING)
+        }
+
+        statusLine = if (currentJar != null) {
+            "Downloaded ${release.tagName}. Restart the game to install it automatically."
+        } else {
+            "Downloaded ${release.tagName} to config/aureon/updates."
+        }
+        AureonCore.LOGGER.info("[Aureon AutoUpdater] Downloaded {} to {}", asset.name, destination.toAbsolutePath())
+    }
+
+    private fun resolveCurrentJarPath(): Path? = runCatching {
+        val path = Path.of(AureonCore::class.java.protectionDomain.codeSource.location.toURI()).toAbsolutePath()
+        path.takeIf { Files.isRegularFile(it) && it.fileName.toString().endsWith(".jar") }
+    }.onFailure {
+        AureonCore.LOGGER.debug("[Aureon AutoUpdater] Unable to resolve current jar path", it)
+    }.getOrNull()
+
+    private fun pendingPathFor(currentJar: Path): Path =
+        currentJar.resolveSibling(currentJar.fileName.toString() + PENDING_UPDATE_SUFFIX)
+
+    private fun trySchedulePendingInstall() {
+        val currentJar = resolveCurrentJarPath() ?: return
+        val stagedFile = pendingPathFor(currentJar)
+        if (!Files.exists(stagedFile)) return
+
+        try {
+            launchInstaller(currentJar, stagedFile)
+            statusLine = "Update is queued and will be installed as the game closes."
+        } catch (e: IOException) {
+            statusLine = "Update downloaded, but failed to schedule install."
+            AureonCore.LOGGER.error("[Aureon AutoUpdater] Failed to launch installer", e)
+        }
+    }
+
+    private fun launchInstaller(currentJar: Path, stagedFile: Path) {
+        val javaExe = Path.of(
+            System.getProperty("java.home"),
+            "bin",
+            if (System.getProperty("os.name", "").lowercase().contains("win")) "javaw.exe" else "java"
+        ).toString()
+
+        val installerRoot = Files.createTempDirectory("aureon-updater-").toAbsolutePath()
+        val installerClass = installerRoot.resolve(INSTALLER_MAIN_CLASS.replace('.', '/') + ".class")
+        Files.createDirectories(installerClass.parent)
+        AutoUpdater::class.java.getResourceAsStream(INSTALLER_CLASS_RESOURCE).use { input ->
+            if (input == null) throw IOException("Unable to locate $INSTALLER_CLASS_RESOURCE in mod jar")
+            Files.copy(input, installerClass, StandardCopyOption.REPLACE_EXISTING)
+        }
+
+        val logFile = currentJar.resolveSibling("aureon-updater.log")
+        ProcessBuilder(
+            javaExe,
+            "-cp",
+            installerRoot.toString(),
+            INSTALLER_MAIN_CLASS,
+            ProcessHandle.current().pid().toString(),
+            stagedFile.toAbsolutePath().toString(),
+            currentJar.toAbsolutePath().toString(),
+            installerRoot.toString()
+        )
+            .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()))
+            .redirectError(ProcessBuilder.Redirect.appendTo(logFile.toFile()))
+            .start()
+    }
+
+    private fun verifyDownloadedJar(jarPath: Path): Boolean = try {
+        JarFile(jarPath.toFile()).use { jar ->
+            val entry = jar.getEntry("fabric.mod.json") ?: return false
+            jar.getInputStream(entry).use(InputStream::readAllBytes).decodeToString().let {
+                it.contains("\"id\": \"$EXPECTED_MOD_ID\"") || it.contains("\"id\":\"$EXPECTED_MOD_ID\"")
+            }
+        }
+    } catch (e: Exception) {
+        AureonCore.LOGGER.warn("[Aureon AutoUpdater] Downloaded jar failed verification", e)
+        false
+    }
+
+    private fun cleanupSiblingPending(currentJar: Path, keepFile: Path) {
+        val siblingDir = currentJar.parent
+        val currentJarName = currentJar.fileName.toString()
+        try {
+            Files.list(siblingDir).use { files ->
+                files.filter { it != keepFile }
+                    .filter { it.fileName.toString().startsWith(currentJarName) && it.fileName.toString().contains(PENDING_UPDATE_SUFFIX) }
+                    .forEach { Files.deleteIfExists(it) }
+            }
+        } catch (e: IOException) {
+            AureonCore.LOGGER.warn("[Aureon AutoUpdater] Failed to clean pending updates near {}", currentJar, e)
+        }
+    }
+
+    private fun cleanupFallbackDownloads(updateDir: Path, keepFile: Path) {
+        try {
+            Files.list(updateDir).use { files ->
+                files.filter { it != keepFile }
+                    .sorted(Comparator.comparing(Path::toString))
+                    .forEach { Files.deleteIfExists(it) }
+            }
+        } catch (e: IOException) {
+            AureonCore.LOGGER.warn("[Aureon AutoUpdater] Failed to clean update directory {}", updateDir, e)
+        }
+    }
+
+    private fun normalizeVersion(version: String?): String =
+        version?.trim()?.removePrefix("v")?.removePrefix("V") ?: ""
+
+    private fun isEnabled(): Boolean = config["autoUpdater"] as? Boolean ?: true
+
+    private class GithubRelease {
+        @SerializedName("tag_name")
+        var tagName: String? = null
+        var assets: Array<GithubAsset?>? = null
+    }
+
+    private class GithubAsset {
+        var name: String? = null
+        var size: Long = 0
+        @SerializedName("browser_download_url")
+        var browserDownloadUrl: String? = null
+    }
+}

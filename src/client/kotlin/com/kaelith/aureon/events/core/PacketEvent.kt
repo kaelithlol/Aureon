@@ -1,0 +1,24 @@
+@file:Suppress("UNUSED")
+
+package com.kaelith.aureon.events.core
+
+import net.minecraft.network.protocol.Packet
+import com.kaelith.aureon.api.events.Event
+
+abstract class PacketEvent {
+    class Received(
+        val packet: Packet<*>
+    ) : Event(cancelable = true)
+
+    class ReceivedPost(
+        val packet: Packet<*>
+    ) : Event()
+
+    class Sent(
+        val packet: Packet<*>
+    ) : Event()
+    
+    class SentPost(
+        val packet: Packet<*>
+    ) : Event()
+}

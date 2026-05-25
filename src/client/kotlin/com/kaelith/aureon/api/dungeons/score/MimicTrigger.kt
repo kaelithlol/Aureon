@@ -1,0 +1,57 @@
+package com.kaelith.aureon.api.dungeons.score
+
+import com.kaelith.aureon.events.EventBus
+import com.kaelith.aureon.events.core.ChatEvent
+import com.kaelith.aureon.events.core.DungeonEvent
+import com.kaelith.aureon.events.core.EntityEvent
+import com.kaelith.aureon.api.dungeons.Dungeon
+import tech.thatgravyboat.skyblockapi.api.location.SkyBlockIsland
+import net.minecraft.world.entity.EquipmentSlot
+import tech.thatgravyboat.skyblockapi.utils.text.TextProperties.stripped
+
+//? if <= 1.21.10 {
+/*import net.minecraft.world.entity.monster.Zombie
+*///?} else {
+import net.minecraft.world.entity.monster.zombie.Zombie
+//?}
+
+/**
+ * Tracks whether the Mimic miniboss has been killed in F6/F7.
+ * Updates via chat messages or entity death detection.
+ */
+object MimicTrigger {
+    val MIMIC_PATTERN = Regex("""^Party > (?:\[[\w+]+] )?\w{1,16}: (.*)$""")
+
+    var mimicDead = false
+    var princeDead = false
+
+    val mimicMessages = listOf("mimic dead", "mimic dead!", "mimic killed", "mimic killed!", "\$skytils-dungeon-score-mimic$")
+
+    fun init() {
+        EventBus.on<ChatEvent.Receive>(SkyBlockIsland.THE_CATACOMBS) { event ->
+            if (Dungeon.floorNumber !in 6..7 || Dungeon.floor == null) return@on
+            val msg = event.message.stripped.lowercase()
+
+            when {
+                MIMIC_PATTERN.matches(msg) && mimicMessages.any { msg.contains(it) } -> mimicDead = true
+                msg == "a prince falls. +1 bonus score" -> {
+                    princeDead = true
+                    EventBus.post(DungeonEvent.Score.PrinceDead())
+                }
+            }
+        }
+
+        EventBus.on<EntityEvent.Death>(SkyBlockIsland.THE_CATACOMBS) { event ->
+            if (Dungeon.floor?.floorNumber !in listOf(6, 7) || mimicDead || Dungeon.inBoss) return@on
+            val entity = event.entity as? Zombie ?: return@on
+            if (!entity.isBaby || entity.hasItemInSlot(EquipmentSlot.HEAD)) return@on
+            mimicDead = true
+            EventBus.post(DungeonEvent.Score.MimicDead())
+        }
+    }
+
+    fun reset() {
+        mimicDead = false
+        princeDead = false
+    }
+}
