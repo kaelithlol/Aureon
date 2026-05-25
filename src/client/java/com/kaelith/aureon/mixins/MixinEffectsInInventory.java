@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Collection;
 
 /*
- * Modified from Devonian code
+ * Modified inventory effect rendering behavior.
  * Under GPL 3.0 License
  */
 @Mixin(EffectsInInventory.class)

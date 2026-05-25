@@ -5,6 +5,7 @@ import com.kaelith.aureon.api.zenith.camera
 import com.kaelith.aureon.api.zenith.client
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
@@ -37,19 +38,41 @@ object Render3D {
         Astrum.queueVoxelFill(shape, Vec3.atLowerCornerOf(pos), color, depth)
     }
 
+
+    fun drawAABB(aabb: AABB, color: Color, depth: Boolean = true, lineWidth: Float = 1f) {
+        if (color.alpha <= 0) return
+        Astrum.queueBox(aabb, color, filled = false, depth = depth, lineWidth = lineWidth)
+    }
+
+    fun drawFilledAABB(aabb: AABB, color: Color, depth: Boolean = true) {
+        if (color.alpha <= 0) return
+        Astrum.queueBox(aabb, color, filled = true, depth = depth)
+    }
+
+    fun drawEntityBox(entity: Entity, color: Color, depth: Boolean = true, lineWidth: Float = 1f, expand: Double = 0.0) {
+        drawAABB(entity.boundingBox.inflate(expand), color, depth, lineWidth)
+    }
+
+    fun drawFilledEntityBox(entity: Entity, color: Color, depth: Boolean = true, expand: Double = 0.0) {
+        drawFilledAABB(entity.boundingBox.inflate(expand), color, depth)
+    }
+
     fun drawBox(x: Double, y: Double, z: Double, width: Double, height: Double, color: Color, depth: Boolean = true, lineWidth: Float = 1f) {
+        if (color.alpha <= 0) return
         val hw = width / 2.0
         val aabb = AABB(x + 0.5 - hw, y, z + 0.5 - hw, x + 0.5 + hw, y + height, z + 0.5 + hw)
         Astrum.queueBox(aabb, color, filled = false, depth = depth, lineWidth = lineWidth)
     }
 
     fun drawFilledBox(x: Double, y: Double, z: Double, width: Double, height: Double, color: Color, depth: Boolean = true) {
+        if (color.alpha <= 0) return
         val hw = width / 2.0
         val aabb = AABB(x + 0.5 - hw, y, z + 0.5 - hw, x + 0.5 + hw, y + height, z + 0.5 + hw)
         Astrum.queueBox(aabb, color, filled = true, depth = depth)
     }
 
     fun drawLine(start: Vec3, finish: Vec3, thickness: Float, color: Color, depth: Boolean = true) {
+        if (color.alpha <= 0) return
         Astrum.queueLine(start, finish, color, thickness, depth)
     }
 

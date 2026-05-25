@@ -9,8 +9,8 @@ Aureon is a Hypixel SkyBlock dungeon and quality-of-life client mod for modern F
 - `/aureon buttons` opens the inventory button editor.
 - `/aureon route start|stop|save|reload|custom|missing` manages secret route recording.
 - `/aureon ready` runs a dungeon ready check.
-- `/aureon update status` shows the auto updater status.
-- `/aureon update check` manually checks GitHub releases.
+- `/aureon updates status` shows the auto updater status.
+- `/aureon updates on` enables auto updates and checks GitHub releases.
 - `/aureon summary copy` copies the last run recap if you missed the clickable chat button.
 - `/aureon dumpscore` prints the current dungeon score breakdown.
 - `/aureon cata <name>` shows Catacombs profile info for a player.
@@ -29,6 +29,7 @@ Aureon is a Hypixel SkyBlock dungeon and quality-of-life client mod for modern F
 - **Room Name HUD**: Shows the current dungeon room name, with optional chroma.
 - **Score Alerts**: Alerts for 270 score, 300 score, 5 crypts, and bat deaths, with optional party chat messages.
 - **Crypt Reminder**: Reminds you to finish crypts after a configurable delay.
+- **Dungeon QoL**: Optional dungeon extras including auto requeue, extra stats, Mimic/Prince party announces, and secret sounds.
 - **Leap Announce**: Sends a custom party message when you leap to another player.
 - **Teammate Missing Alert**: Warns when fewer than five players are detected in a dungeon.
 - **Join Info**: Shows Catacombs stats, floor times, armor, and key items when a player joins through Party Finder.
@@ -63,7 +64,7 @@ Aureon is a Hypixel SkyBlock dungeon and quality-of-life client mod for modern F
 - **Sword Blocking**: Restores 1.8.9-style sword blocking visuals.
 - **Cosmetics**: Toggles Aureon cosmetics.
 - **HUD Editor**: Lets you move and scale HUD elements.
-- **Auto Updater**: Checks GitHub releases, downloads verified Aureon jars, and stages updates for install on restart. This can be turned off in config.
+- **Auto Updater**: Enabled by default. Checks GitHub releases, downloads verified Aureon jars, and stages updates for install on restart.
 
 ## License
 

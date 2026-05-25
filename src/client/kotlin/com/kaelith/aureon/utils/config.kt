@@ -483,6 +483,43 @@ val config = Config(AureonCore.NAMESPACE) {
             }
         }
 
+        subcategory("Dungeon QoL", "dungeonQoL", "Extra dungeon quality-of-life features") {
+            toggle {
+                configName = "dungeonQoL.autoRequeue"
+                name = "Auto Requeue"
+                description = "Runs /instancerequeue after a dungeon ends"
+                default = false
+            }
+
+            toggle {
+                configName = "dungeonQoL.extraStats"
+                name = "Extra Stats"
+                description = "Runs /showextrastats after a dungeon ends"
+                default = false
+            }
+
+            toggle {
+                configName = "dungeonQoL.mimicAnnounce"
+                name = "Mimic Announce"
+                description = "Sends a party message when Mimic dies"
+                default = false
+            }
+
+            toggle {
+                configName = "dungeonQoL.princeAnnounce"
+                name = "Prince Announce"
+                description = "Sends a party message when Prince dies"
+                default = false
+            }
+
+            toggle {
+                configName = "dungeonQoL.secretSounds"
+                name = "Secret Sounds"
+                description = "Plays a sound when secrets are clicked, picked up, or killed"
+                default = false
+            }
+        }
+
         subcategory("Join Info", "joinInfo", "Shows extra info when someone joins your party")
     }
 
@@ -817,6 +854,78 @@ val config = Config(AureonCore.NAMESPACE) {
                 shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
             }
 
+            colorpicker {
+                configName = "keyFillColor"
+                name = "Key Fill Color"
+                description = "Fill color for wither/blood doors when a key is available"
+                default = Color(0, 255, 0, 64)
+                shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "noKeyFillColor"
+                name = "No Key Fill Color"
+                description = "Fill color for locked wither doors"
+                default = Color(255, 0, 0, 64)
+                shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "bloodBoxDoorColor"
+                name = "Blood Door Locked Color"
+                description = "Outline color for the blood door before blood key"
+                default = Color(255, 0, 0, 255)
+                shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "bloodDoorFillColor"
+                name = "Blood Door Fill Color"
+                description = "Fill color for the blood door before blood key"
+                default = Color(255, 0, 0, 64)
+                shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
+            }
+
+            toggle {
+                configName = "renderNormalDoorBoxes"
+                name = "Highlight Normal Doors"
+                description = "Also highlights normal dungeon doors"
+                default = false
+                shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
+            }
+
+            toggle {
+                configName = "hideGreenNormalDoorBoxes"
+                name = "Hide Useless Normal Doors"
+                description = "Skips normal doors that only lead to green-checked or entrance rooms"
+                default = true
+                shouldShow { settings -> (settings["boxWitherDoors"] as Boolean) && (settings["renderNormalDoorBoxes"] as Boolean) }
+            }
+
+            colorpicker {
+                configName = "normalBoxDoorColor"
+                name = "Normal Door Color"
+                description = "Outline color for normal door boxes"
+                default = Color(0, 128, 128, 255)
+                shouldShow { settings -> (settings["boxWitherDoors"] as Boolean) && (settings["renderNormalDoorBoxes"] as Boolean) }
+            }
+
+            colorpicker {
+                configName = "normalDoorFillColor"
+                name = "Normal Door Fill Color"
+                description = "Fill color for normal door boxes"
+                default = Color(0, 128, 128, 32)
+                shouldShow { settings -> (settings["boxWitherDoors"] as Boolean) && (settings["renderNormalDoorBoxes"] as Boolean) }
+            }
+
+            toggle {
+                configName = "doorFillPhase"
+                name = "Door Fill Through Walls"
+                description = "Shows door fills through walls"
+                default = false
+                shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
+            }
+
             stepslider {
                 configName = "doorLineWidth"
                 name = "Door Line Width"
@@ -826,6 +935,98 @@ val config = Config(AureonCore.NAMESPACE) {
                 step = 1
                 default = 3
                 shouldShow { settings -> settings["boxWitherDoors"] as Boolean }
+            }
+
+            toggle {
+                configName = "starMobBoxes"
+                name = "Star Mob Boxes"
+                description = "Highlights starred dungeon mobs and minibosses"
+                default = false
+            }
+
+            colorpicker {
+                configName = "starMobColor"
+                name = "Starred Mob Color"
+                description = "Outline color for normal starred mobs"
+                default = Color(0, 255, 255, 255)
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "starMobChunkyColor"
+                name = "Chunky Star Mob Color"
+                description = "Withermancers, commanders, lords, and super archers"
+                default = Color(255, 0, 128, 255)
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "starMobFelColor"
+                name = "Fels Color"
+                description = "Outline color for starred Fels"
+                default = Color(0, 255, 128, 255)
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "starMobMiniColor"
+                name = "Miniboss Color"
+                description = "Outline color for minibosses"
+                default = Color(235, 1, 165, 255)
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "starMobShadowAssassinColor"
+                name = "Shadow Assassin Color"
+                description = "Outline color for Shadow Assassins"
+                default = Color(255, 0, 0, 255)
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "starMobSkeletonMasterColor"
+                name = "Skeleton Master Color"
+                description = "Outline color for Skeleton Masters"
+                default = Color(255, 128, 0, 255)
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            stepslider {
+                configName = "starMobLineWidth"
+                name = "Star Mob Line Width"
+                description = "Line width for starred mob boxes"
+                min = 1
+                max = 10
+                step = 1
+                default = 3
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            slider {
+                configName = "starMobFillAlpha"
+                name = "Star Mob Fill Alpha"
+                description = "Fill opacity for starred mob boxes"
+                min = 0f
+                max = 1f
+                default = 0f
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            toggle {
+                configName = "starMobShowFullShadowAssassin"
+                name = "Show Full Shadow Assassin"
+                description = "Shows the full Shadow Assassin hitbox while invisible"
+                default = true
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
+            }
+
+            toggle {
+                configName = "starMobPhase"
+                name = "Star Mob Through Walls"
+                description = "Shows starred mob boxes through walls"
+                default = false
+                shouldShow { settings -> settings["starMobBoxes"] as Boolean }
             }
 
             toggle {
@@ -1123,6 +1324,35 @@ val config = Config(AureonCore.NAMESPACE) {
                 shouldShow { settings -> settings["fillBlockOverlay"] as Boolean }
             }
 
+            toggle {
+                configName = "overlayEntityHighlight"
+                name = "Highlight Entities"
+                description = "Highlights the entity you are looking at"
+                default = false
+            }
+
+            toggle {
+                configName = "overlayOutlinePhase"
+                name = "Outline Through Walls"
+                description = "Shows the outline through walls"
+                default = false
+            }
+
+            toggle {
+                configName = "overlayFillPhase"
+                name = "Fill Through Walls"
+                description = "Shows the fill through walls"
+                default = false
+                shouldShow { settings -> settings["fillBlockOverlay"] as Boolean }
+            }
+
+            toggle {
+                configName = "overlayDynamicPhase"
+                name = "Dynamic Phase"
+                description = "First person renders through walls, third person uses normal depth"
+                default = false
+            }
+
             stepslider {
                 configName = "overlayLineWidth"
                 name = "Line width"
@@ -1131,6 +1361,39 @@ val config = Config(AureonCore.NAMESPACE) {
                 max = 5
                 step = 1
                 default = 3
+            }
+        }
+
+        subcategory("Arrow Hitboxes", "arrowHitboxes", "Draws boxes around arrows") {
+            colorpicker {
+                configName = "arrowHitboxOutlineColor"
+                name = "Outline Color"
+                description = "Outline color for arrow hitboxes"
+                default = Color(255, 255, 255, 255)
+            }
+
+            colorpicker {
+                configName = "arrowHitboxFillColor"
+                name = "Fill Color"
+                description = "Fill color for arrow hitboxes"
+                default = Color(255, 255, 255, 0)
+            }
+
+            stepslider {
+                configName = "arrowHitboxLineWidth"
+                name = "Line Width"
+                description = "Line width for arrow hitboxes"
+                min = 1
+                max = 10
+                step = 1
+                default = 1
+            }
+
+            toggle {
+                configName = "arrowHitboxPhase"
+                name = "Through Walls"
+                description = "Shows arrow hitboxes through walls"
+                default = false
             }
         }
 

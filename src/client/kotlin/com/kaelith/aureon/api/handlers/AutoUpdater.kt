@@ -6,7 +6,6 @@ import com.kaelith.aureon.annotations.Module
 import com.kaelith.aureon.events.EventBus
 import com.kaelith.aureon.events.core.GameEvent
 import com.kaelith.aureon.events.core.TickEvent
-import com.kaelith.aureon.utils.config
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.util.Util
 import java.io.IOException
@@ -39,13 +38,15 @@ object AutoUpdater {
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build()
 
+    var enabled by Capsule("autoUpdaterEnabled", true)
+
     @Volatile private var lastCheckStartedMs = 0L
-    @Volatile var statusLine = "Ready. Use /aureon update status."
+    @Volatile var statusLine = "Ready. Use /aureon updates status."
         private set
 
     init {
         EventBus.on<TickEvent.Client> {
-            if (!isEnabled() || checking.get()) return@on
+            if (!enabled || checking.get()) return@on
             val now = Util.getMillis()
             if (lastCheckStartedMs == 0L || now - lastCheckStartedMs >= CHECK_INTERVAL_MS) {
                 checkForUpdatesAsync(manual = false)
@@ -53,23 +54,12 @@ object AutoUpdater {
         }
 
         EventBus.on<GameEvent.Stop> {
-            if (isEnabled()) trySchedulePendingInstall()
-        }
-
-        config.registerListener { name, value ->
-            if (name != "autoUpdater") return@registerListener
-            if (value as? Boolean == false) {
-                statusLine = "Auto updater disabled."
-                clearPendingUpdate()
-            } else {
-                statusLine = "Auto updater enabled."
-                checkForUpdatesAsync(manual = false)
-            }
+            if (enabled) trySchedulePendingInstall()
         }
     }
 
     fun checkForUpdatesAsync(manual: Boolean) {
-        if (!isEnabled() && !manual) {
+        if (!enabled && !manual) {
             statusLine = "Auto updater is disabled."
             return
         }
@@ -90,6 +80,16 @@ object AutoUpdater {
             } finally {
                 checking.set(false)
             }
+        }
+    }
+
+    fun setEnabledState(enabled: Boolean) {
+        this.enabled = enabled
+        statusLine = if (enabled) {
+            "Auto updater enabled."
+        } else {
+            clearPendingUpdate()
+            "Auto updater disabled."
         }
     }
 
@@ -296,8 +296,6 @@ object AutoUpdater {
 
     private fun normalizeVersion(version: String?): String =
         version?.trim()?.removePrefix("v")?.removePrefix("V") ?: ""
-
-    private fun isEnabled(): Boolean = config["autoUpdater"] as? Boolean ?: true
 
     private class GithubRelease {
         @SerializedName("tag_name")

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Gui.class)
 public class MixinGui {
     /*
-     * Modified from Devonian code
+     * Modified vanilla HUD rendering behavior.
      * Under GPL 3.0 License
      */
     @Inject(method = "extractEffects", at = @At("HEAD"), cancellable = true)
