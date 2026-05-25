@@ -64,7 +64,3 @@ Aureon is a Hypixel SkyBlock dungeon and quality-of-life client mod for modern F
 - **Cosmetics**: Toggles Aureon cosmetics.
 - **HUD Editor**: Lets you move and scale HUD elements.
 - **Auto Updater**: Checks GitHub releases, downloads verified Aureon jars, and stages updates for install on restart. This can be turned off in config.
-
-## License
-
-Aureon includes code and UI concepts with third-party attribution listed in `NOTICE` and `THIRD_PARTY_LICENSES/`. See those files for details.
