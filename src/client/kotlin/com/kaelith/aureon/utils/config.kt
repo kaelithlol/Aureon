@@ -520,6 +520,331 @@ val config = Config(AureonCore.NAMESPACE) {
             }
         }
 
+        subcategory("Blood ESP", "bloodEsp", "Highlights the Blood room before the dungeon starts") {
+            toggle {
+                configName = "bloodEsp.roomBox"
+                name = "Room Box"
+                description = "Draws a box around the Blood room"
+                default = true
+            }
+
+            toggle {
+                configName = "bloodEsp.tracer"
+                name = "Door Tracer"
+                description = "Draws a tracer toward the Blood room"
+                default = true
+            }
+
+            colorpicker {
+                configName = "bloodEsp.color"
+                name = "Color"
+                description = "Blood room ESP color"
+                default = Color(255, 0, 0, 150)
+            }
+        }
+
+        subcategory("Door Key ESP", "doorKeysEsp", "Highlights dropped Wither and Blood keys") {
+            toggle {
+                configName = "doorKeysEsp.wither"
+                name = "Wither Key"
+                description = "Highlight Wither Key drops"
+                default = true
+            }
+
+            toggle {
+                configName = "doorKeysEsp.blood"
+                name = "Blood Key"
+                description = "Highlight Blood Key drops"
+                default = true
+            }
+
+            colorpicker {
+                configName = "doorKeysEsp.witherColor"
+                name = "Wither Color"
+                description = "ESP color for Wither Key drops"
+                default = Color(0, 0, 0, 110)
+                shouldShow { it["doorKeysEsp.wither"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "doorKeysEsp.bloodColor"
+                name = "Blood Color"
+                description = "ESP color for Blood Key drops"
+                default = Color(255, 0, 0, 110)
+                shouldShow { it["doorKeysEsp.blood"] as Boolean }
+            }
+        }
+
+        subcategory("Boss Bar Health", "bossBarHealth", "Shows estimated boss health on dungeon boss bars") {
+            toggle {
+                configName = "bossBarHealth.watcher"
+                name = "The Watcher"
+                description = "Show health for The Watcher"
+                default = true
+            }
+
+            toggle {
+                configName = "bossBarHealth.thorn"
+                name = "Thorn"
+                description = "Show health for Thorn"
+                default = true
+            }
+
+            toggle {
+                configName = "bossBarHealth.withers"
+                name = "F7 Withers"
+                description = "Show health for Maxor, Storm, Goldor, and Necron"
+                default = true
+            }
+        }
+
+        subcategory("Architect Draft", "architectDraft", "Draft helpers for failed puzzle rooms") {
+            toggle {
+                configName = "architectDraft.announce"
+                name = "Announce Draft"
+                description = "Announces when you use Architect's First Draft"
+                default = true
+            }
+
+            toggle {
+                configName = "architectDraft.autoGet"
+                name = "Auto Get Draft"
+                description = "Runs /gfs after you fail a puzzle"
+                default = false
+            }
+        }
+
+        subcategory("Leap Menu", "leapMenu", "Adds quick leap keys and leap messages") {
+            toggle {
+                configName = "leapMenu.announce"
+                name = "Announce Leap"
+                description = "Sends a party message when you leap"
+                default = false
+            }
+
+            textinput {
+                configName = "leapMenu.message"
+                name = "Leap Message"
+                description = "{name} is replaced with the player you leaped to"
+                placeholder = "Leaping to {name}"
+                shouldShow { it["leapMenu.announce"] as Boolean }
+            }
+
+            toggle {
+                configName = "leapMenu.hideNearby"
+                name = "Hide Nearby"
+                description = "Briefly hides nearby teammates after leaping"
+                default = false
+            }
+
+            keybind {
+                configName = "leapMenu.slot1"
+                name = "Slot 1"
+                description = "Clicks the first player head in the leap menu"
+                default = Zenith.Keys.N_1
+            }
+
+            keybind {
+                configName = "leapMenu.slot2"
+                name = "Slot 2"
+                description = "Clicks the second player head in the leap menu"
+                default = Zenith.Keys.N_2
+            }
+
+            keybind {
+                configName = "leapMenu.slot3"
+                name = "Slot 3"
+                description = "Clicks the third player head in the leap menu"
+                default = Zenith.Keys.N_3
+            }
+
+            keybind {
+                configName = "leapMenu.slot4"
+                name = "Slot 4"
+                description = "Clicks the fourth player head in the leap menu"
+                default = Zenith.Keys.N_4
+            }
+        }
+
+        subcategory("Auto GFS", "autoGfs", "Automatically refills dungeon items from sacks") {
+            stepslider {
+                configName = "autoGfs.delay"
+                name = "Check Delay"
+                description = "Seconds between refill checks"
+                min = 5
+                max = 60
+                step = 5
+                default = 20
+            }
+
+            toggle {
+                configName = "autoGfs.pearls"
+                name = "Ender Pearls"
+                description = "Refill ender pearls up to 16"
+                default = false
+            }
+
+            toggle {
+                configName = "autoGfs.superboom"
+                name = "Superboom TNT"
+                description = "Refill Superboom TNT up to 64"
+                default = false
+            }
+
+            toggle {
+                configName = "autoGfs.jerry"
+                name = "Inflatable Jerry"
+                description = "Refill Inflatable Jerry up to 64"
+                default = false
+            }
+
+            toggle {
+                configName = "autoGfs.leaps"
+                name = "Spirit Leaps"
+                description = "Refill Spirit Leaps up to 16"
+                default = false
+            }
+
+            toggle {
+                configName = "autoGfs.twilight"
+                name = "Twilight Poison"
+                description = "Refill Twilight Arrow Poison during M7 triggers"
+                default = false
+            }
+        }
+
+        subcategory("Room Alerts", "roomAlerts", "Alerts for clear and secrets done in your current room") {
+            toggle {
+                configName = "roomAlerts.clear"
+                name = "Cleared"
+                description = "Shows a title when your room clears"
+                default = true
+            }
+
+            toggle {
+                configName = "roomAlerts.secrets"
+                name = "Secrets Done"
+                description = "Shows a title when your room turns green"
+                default = true
+            }
+        }
+
+        subcategory("F7/M7 Helpers", "floor7Helpers", "Extra helpers for F7 and M7 boss phases") {
+            toggle {
+                configName = "floor7Helpers.witherEsp"
+                name = "Wither ESP"
+                description = "Highlights active F7/M7 wither bosses"
+                default = true
+            }
+
+            colorpicker {
+                configName = "floor7Helpers.witherColor"
+                name = "Wither Color"
+                description = "Wither ESP color"
+                default = Color(255, 255, 255, 180)
+                shouldShow { it["floor7Helpers.witherEsp"] as Boolean }
+            }
+
+            toggle {
+                configName = "floor7Helpers.crystalTimer"
+                name = "Crystal Timer"
+                description = "Shows Maxor crystal respawn timing"
+                default = true
+            }
+
+            toggle {
+                configName = "floor7Helpers.crystalPlace"
+                name = "Crystal Place Time"
+                description = "Shows your crystal place time in chat"
+                default = true
+            }
+
+            toggle {
+                configName = "floor7Helpers.relicTimer"
+                name = "Relic Timer"
+                description = "Shows M7 relic spawn timing"
+                default = true
+            }
+
+            toggle {
+                configName = "floor7Helpers.relicBoxes"
+                name = "Relic Boxes"
+                description = "Highlights the cauldron for the relic you are holding"
+                default = true
+            }
+        }
+
+        subcategory("Puzzle Solvers", "puzzleSolvers", "Dungeon puzzle solver highlights") {
+            toggle {
+                configName = "puzzleSolvers.quiz"
+                name = "Quiz Solver"
+                description = "Highlights the correct Quiz answer from chat"
+                default = true
+            }
+
+            colorpicker {
+                configName = "puzzleSolvers.quizColor"
+                name = "Quiz Color"
+                description = "Correct answer highlight color"
+                default = Color(0, 255, 255, 120)
+                shouldShow { it["puzzleSolvers.quiz"] as Boolean }
+            }
+
+            toggle {
+                configName = "puzzleSolvers.threeWeirdos"
+                name = "Three Weirdos"
+                description = "Highlights the correct Three Weirdos chest"
+                default = true
+            }
+
+            colorpicker {
+                configName = "puzzleSolvers.weirdosCorrectColor"
+                name = "Correct Chest"
+                description = "Correct chest highlight color"
+                default = Color(0, 255, 0, 120)
+                shouldShow { it["puzzleSolvers.threeWeirdos"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "puzzleSolvers.weirdosWrongColor"
+                name = "Wrong Chest"
+                description = "Wrong chest highlight color"
+                default = Color(255, 0, 0, 90)
+                shouldShow { it["puzzleSolvers.threeWeirdos"] as Boolean }
+            }
+
+            toggle {
+                configName = "puzzleSolvers.blaze"
+                name = "Blaze Solver"
+                description = "Highlights Blaze kill order"
+                default = true
+            }
+
+            colorpicker {
+                configName = "puzzleSolvers.blazeFirstColor"
+                name = "First Blaze"
+                description = "First Blaze highlight color"
+                default = Color(0, 255, 0, 180)
+                shouldShow { it["puzzleSolvers.blaze"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "puzzleSolvers.blazeSecondColor"
+                name = "Second Blaze"
+                description = "Second Blaze highlight color"
+                default = Color(255, 255, 0, 180)
+                shouldShow { it["puzzleSolvers.blaze"] as Boolean }
+            }
+
+            colorpicker {
+                configName = "puzzleSolvers.blazeOtherColor"
+                name = "Other Blazes"
+                description = "Other Blaze highlight color"
+                default = Color(255, 0, 0, 180)
+                shouldShow { it["puzzleSolvers.blaze"] as Boolean }
+            }
+        }
+
         subcategory("Join Info", "joinInfo", "Shows extra info when someone joins your party")
     }
 
@@ -1570,6 +1895,78 @@ val config = Config(AureonCore.NAMESPACE) {
 
         subcategory("Soulflow Display", "soulflowDisplay", "Enables the soulflow display")
         subcategory("Sword Blocking", "swordBlocking", "Enables 1.8.9 style sword blocking")
+        subcategory("Auto Sprint", "autoSprint", "Automatically holds sprint while you play")
+
+        subcategory("Cake Numbers", "cakeNumbers", "Shows cake years inside New Year Cake Bags") {
+            colorpicker {
+                configName = "cakeNumbers.color"
+                name = "Text Color"
+                description = "Text color for cake years"
+                default = Color(85, 255, 255, 255)
+            }
+        }
+
+        subcategory("Visual HUD") {
+            toggle {
+                configName = "fpsDisplay"
+                name = "FPS Display"
+                description = "Shows your current FPS on the HUD"
+                default = false
+            }
+
+            colorpicker {
+                configName = "fpsDisplay.color"
+                name = "FPS Color"
+                description = "Text color for the FPS display"
+                default = Color(230, 114, 230, 255)
+                shouldShow { it["fpsDisplay"] as Boolean }
+            }
+
+            toggle {
+                configName = "cpsDisplay"
+                name = "CPS Display"
+                description = "Shows left and right clicks per second on the HUD"
+                default = false
+            }
+
+            colorpicker {
+                configName = "cpsDisplay.color"
+                name = "CPS Color"
+                description = "Text color for the CPS display"
+                default = Color(230, 114, 230, 255)
+                shouldShow { it["cpsDisplay"] as Boolean }
+            }
+
+            toggle {
+                configName = "tpsDisplay"
+                name = "TPS Display"
+                description = "Shows estimated server TPS on the HUD"
+                default = false
+            }
+
+            colorpicker {
+                configName = "tpsDisplay.color"
+                name = "TPS Color"
+                description = "Text color for the TPS display"
+                default = Color(230, 114, 230, 255)
+                shouldShow { it["tpsDisplay"] as Boolean }
+            }
+
+            toggle {
+                configName = "clockDisplay"
+                name = "Clock Display"
+                description = "Shows your local time on the HUD"
+                default = false
+            }
+
+            colorpicker {
+                configName = "clockDisplay.color"
+                name = "Clock Color"
+                description = "Text color for the clock display"
+                default = Color(230, 114, 230, 255)
+                shouldShow { it["clockDisplay"] as Boolean }
+            }
+        }
 
         /*
         subcategory("Custom Nametags") {

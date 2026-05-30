@@ -3,6 +3,8 @@
   "package": "com.kaelith.aureon.mixins",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "MixinBossHealthOverlay",
+    "accessors.AccessorLerpingBossEvent",
     "accessors.AccessorGpuDevice"
   ],
   "injectors": {
