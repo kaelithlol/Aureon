@@ -28,6 +28,7 @@ object GeneratedFeatureRegistry {
         com.kaelith.aureon.features.dungeons.TeammateMissing::class.java,
         com.kaelith.aureon.features.dungeons.TermNumbers::class.java,
         com.kaelith.aureon.features.dungeons.TermTracker::class.java,
+        com.kaelith.aureon.features.msc.AutoFriend::class.java,
         com.kaelith.aureon.features.msc.ArrowHitboxes::class.java,
         com.kaelith.aureon.features.msc.AutopetTitles::class.java,
         com.kaelith.aureon.features.msc.Bars::class.java,
@@ -45,6 +46,7 @@ object GeneratedFeatureRegistry {
 
     val commands: List<Atlas> = listOf(
         com.kaelith.aureon.utils.MainCommand,
-        com.kaelith.aureon.features.dungeons.FunnyCommand
+        com.kaelith.aureon.features.dungeons.FunnyCommand,
+        com.kaelith.aureon.features.msc.AutoFriendCommand
     )
 }

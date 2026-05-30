@@ -12,6 +12,7 @@ import com.kaelith.aureon.api.zenith.client
 import com.kaelith.aureon.api.zenith.player
 import com.kaelith.aureon.features.dungeons.DungeonSplits
 import com.kaelith.aureon.features.dungeons.JoinInfo
+import com.kaelith.aureon.features.msc.AutoFriend
 import com.kaelith.aureon.features.msc.buttonUtils.ButtonLayoutEditor
 import com.kaelith.aureon.features.secrets.utils.routes.RouteRecorder
 import com.kaelith.aureon.hud.HUDEditor
@@ -121,6 +122,13 @@ object MainCommand : Atlas("aureon", "Aureon") {
         literal("ready") {
             runs {
                 DungeonSplits.runReadyCheck()
+            }
+        }
+
+        literal("autofriend") {
+            runs {
+                val enabled = AutoFriend.toggle()
+                Signal.fakeMessage("${AureonCore.PREFIX} \u00a7bAuto Friend: ${if (enabled) "\u00a7aON" else "\u00a7cOFF"}")
             }
         }
 

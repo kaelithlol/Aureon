@@ -1423,6 +1423,26 @@ val config = Config(AureonCore.NAMESPACE) {
             }
         }
 
+        subcategory("Auto Friend", "autoFriend", "Automatically accepts Hypixel friend requests") {
+            value = true
+
+            toggle {
+                configName = "autoFriend.hideRequest"
+                name = "Hide Request"
+                description = "Hides accepted friend request messages from chat"
+                default = true
+                shouldShow { settings -> settings["autoFriend"] as Boolean }
+            }
+
+            toggle {
+                configName = "autoFriend.onlyOnHypixel"
+                name = "Hypixel Only"
+                description = "Only accepts friend requests when connected to Hypixel"
+                default = true
+                shouldShow { settings -> settings["autoFriend"] as Boolean }
+            }
+        }
+
         subcategory("Pet Display", "petDisplay", "Enables the pet display") {
             toggle {
                 configName = "autopetMessages"
