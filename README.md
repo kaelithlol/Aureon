@@ -10,7 +10,8 @@ Aureon is a Hypixel SkyBlock dungeon and quality-of-life client mod for modern F
 - `/aureon route start|stop|save|reload|custom|missing` manages secret route recording.
 - `/aureon ready` runs a dungeon ready check.
 - `/aureon updates status` shows the auto updater status.
-- `/aureon updates on` enables auto updates and checks GitHub releases.
+- `/aureon updates on` enables update reminders and checks GitHub releases.
+- `/aureon updates off` disables update reminders.
 - `/aureon summary copy` copies the last run recap if you missed the clickable chat button.
 - `/aureon dumpscore` prints the current dungeon score breakdown.
 - `/aureon cata <name>` shows Catacombs profile info for a player.
@@ -64,7 +65,7 @@ Aureon is a Hypixel SkyBlock dungeon and quality-of-life client mod for modern F
 - **Sword Blocking**: Restores 1.8.9-style sword blocking visuals.
 - **Cosmetics**: Toggles Aureon cosmetics.
 - **HUD Editor**: Lets you move and scale HUD elements.
-- **Auto Updater**: Enabled by default. Checks GitHub releases, downloads verified Aureon jars, and stages updates for install on restart.
+- **Auto Updater**: Enabled by default. Checks GitHub releases, asks in chat before downloading the newest Aureon jar, and stages accepted updates for install on restart. `/aureon updates off` disables these reminders.
 
 ## License
 

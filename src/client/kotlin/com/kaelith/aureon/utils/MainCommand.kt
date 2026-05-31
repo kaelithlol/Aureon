@@ -83,7 +83,8 @@ object MainCommand : Atlas("aureon", "Aureon") {
                 Signal.fakeMessage("§6/aureon hud §7Opens the HUD editor!")
                 Signal.fakeMessage("§6/aureon route §7Manage secret route recording.")
                 Signal.fakeMessage("§6/aureon updates status §7Shows auto updater status.")
-                Signal.fakeMessage("§6/aureon updates on §7Enables auto updates and checks now.")
+                Signal.fakeMessage("§6/aureon updates on §7Enables update reminders and checks now.")
+                Signal.fakeMessage("§6/aureon updates off §7Disables update reminders.")
                 Signal.fakeMessage("§6/aureon summary copy §7Copies the last run recap.")
                 Signal.fakeMessage("§8§m------------------------------------------")
             }
@@ -142,11 +143,20 @@ object MainCommand : Atlas("aureon", "Aureon") {
             literal("on") {
                 runs {
                     AutoUpdater.setEnabledState(true)
-                    AutoUpdater.checkForUpdatesAsync(manual = true)
-                    Signal.fakeMessage("${AureonCore.PREFIX} §b${AutoUpdater.statusLine}")
                 }
             }
 
+            literal("download") {
+                runs {
+                    AutoUpdater.downloadApprovedUpdateAsync()
+                }
+            }
+
+            literal("off") {
+                runs {
+                    AutoUpdater.setEnabledState(false)
+                }
+            }
         }
 
         literal("cata") {
